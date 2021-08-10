@@ -31,10 +31,10 @@ interface PhantomProvider {
     message: Uint8Array | string,
     display?: DisplayEncoding
   ) => Promise<any>;
-  connect: (opts?: Partial<ConnectOpts>) => Promise<void>;
+  connect: (opts?: Partial<ConnectOpts>) => Promise<{ publicKey: PublicKey, autoApprove: boolean }>;
   disconnect: () => Promise<void>;
   on: (event: PhantomEvent, handler: (args: any) => void) => void;
-  request: (method: PhantomRequestMethod, params: any) => Promise<any>;
+  request: (method: PhantomRequestMethod, params: any) => Promise<unknown>;
 }
 
 const getProvider = (): PhantomProvider | undefined => {
@@ -107,9 +107,9 @@ export default function App() {
         );
         await connection.confirmTransaction(signature);
         addLog("Transaction " + signature + " confirmed");
-      } catch (e) {
-        console.warn(e);
-        addLog("Error: " + e.message);
+      } catch (err) {
+        console.warn(err);
+        addLog("Error: " + JSON.stringify(err));
       }
     }
   };
@@ -120,20 +120,30 @@ export default function App() {
     ]);
     if (transaction1 && transaction2) {
       let signature;
-      if (onlyFirst) {
-        signature = await provider.signAllTransactions([transaction1]);
-      } else {
-        signature = await provider.signAllTransactions([
-          transaction1,
-          transaction2
-        ]);
+      try {
+        if (onlyFirst) {
+          signature = await provider.signAllTransactions([transaction1]);
+        } else {
+          signature = await provider.signAllTransactions([
+            transaction1,
+            transaction2
+          ]);
+        }
+      } catch (err) {
+        console.warn(err);
+        addLog("Error: " + JSON.stringify(err));
       }
       addLog("Signature " + signature);
     }
   };
   const signMessage = async (message: string) => {
     const data = new TextEncoder().encode(message);
-    await provider.signMessage(data);
+    try {
+      await provider.signMessage(data);
+    } catch (err) {
+      console.warn(err);
+      addLog("Error: " + JSON.stringify(err));
+    }
     addLog("Message signed");
   };
   return (
@@ -161,11 +171,33 @@ export default function App() {
             >
               Sign Message
             </button>
-            <button onClick={() => provider.disconnect()}>Disconnect</button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await provider.disconnect();
+                  addLog(JSON.stringify(res));
+                } catch (err) {
+                  console.warn(err);
+                  addLog("Error: " + JSON.stringify(err));
+                }
+              }}
+            >
+              Disconnect
+            </button>
           </>
         ) : (
           <>
-            <button onClick={() => provider.connect()}>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await provider.connect();
+                  addLog(JSON.stringify(res));
+                } catch (err) {
+                  console.warn(err);
+                  addLog("Error: " + JSON.stringify(err));
+                }
+              }}
+            >
               Connect to Phantom
             </button>
           </>
